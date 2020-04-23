@@ -4,12 +4,15 @@ const router = express.Router();
 const passport = require("passport");
 const moment = require("moment");
 const mongoose = require("mongoose");
+
 // Load Account and User models
 const Account = require("../../models/Account");
 const User = require("../../models/User");
+
 const PLAID_CLIENT_ID = "5e9f8df712315a00127ba177";
 const PLAID_SECRET = "c9cd92e7cd01e3e0fae917e5d463eb";
 const PLAID_PUBLIC_KEY = "e52656649b5fd7e767fc17f93acec9";
+
 const client = new plaid.Client(
   PLAID_CLIENT_ID,
   PLAID_SECRET,
@@ -17,11 +20,23 @@ const client = new plaid.Client(
   plaid.environments.sandbox,
   { version: "2018-05-22" }
 );
+
 var PUBLIC_TOKEN = null;
 var ACCESS_TOKEN = null;
 var ITEM_ID = null;
-// Routes will go here
-module.exports = router;
+
+// @route GET api/plaid/accounts
+// @desc Get all accounts linked with plaid for a specific user
+// @access Private
+router.get(
+  "/accounts",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    Account.find({ userId: req.user.id })
+      .then(accounts => res.json(accounts))
+      .catch(err => console.log(err));
+  }
+);
 
 // @route POST api/plaid/accounts/add
 // @desc Trades public token for access token and stores credentials in database
@@ -31,16 +46,20 @@ router.post(
   passport.authenticate("jwt", { session: false }),
   (req, res) => {
     PUBLIC_TOKEN = req.body.public_token;
-const userId = req.user.id;
-const institution = req.body.metadata.institution;
+
+    const userId = req.user.id;
+
+    const institution = req.body.metadata.institution;
     const { name, institution_id } = institution;
-if (PUBLIC_TOKEN) {
+
+    if (PUBLIC_TOKEN) {
       client
         .exchangePublicToken(PUBLIC_TOKEN)
         .then(exchangeResponse => {
           ACCESS_TOKEN = exchangeResponse.access_token;
           ITEM_ID = exchangeResponse.item_id;
-// Check if account already exists for specific user
+
+          // Check if account already exists for specific user
           Account.findOne({
             userId: req.user.id,
             institutionId: institution_id
@@ -56,7 +75,8 @@ if (PUBLIC_TOKEN) {
                   institutionId: institution_id,
                   institutionName: name
                 });
-newAccount.save().then(account => res.json(account));
+
+                newAccount.save().then(account => res.json(account));
               }
             })
             .catch(err => console.log(err)); // Mongo Error
@@ -78,18 +98,6 @@ router.delete(
       account.remove().then(() => res.json({ success: true }));
     });
   }
-
-  // @route GET api/plaid/accounts
-// @desc Get all accounts linked with plaid for a specific user
-// @access Private
-router.get(
-  "/accounts",
-  passport.authenticate("jwt", { session: false }),
-  (req, res) => {
-    Account.find({ userId: req.user.id })
-      .then(accounts => res.json(accounts))
-      .catch(err => console.log(err));
-  }
 );
 
 // @route POST api/plaid/accounts/transactions
@@ -101,22 +109,26 @@ router.post(
   (req, res) => {
     const now = moment();
     const today = now.format("YYYY-MM-DD");
-    const thirtyDaysAgo = now.subtract(30, "days").format("YYYY-MM-DD"); // Change this if you want more transactions
-let transactions = [];
-const accounts = req.body;
-if (accounts) {
+    const thirtyDaysAgo = now.subtract(30, "days").format("YYYY-MM-DD");
+
+    let transactions = [];
+
+    const accounts = req.body;
+
+    if (accounts) {
       accounts.forEach(function(account) {
         ACCESS_TOKEN = account.accessToken;
         const institutionName = account.institutionName;
-client
+
+        client
           .getTransactions(ACCESS_TOKEN, thirtyDaysAgo, today)
           .then(response => {
             transactions.push({
               accountName: institutionName,
               transactions: response.transactions
             });
-// Don't send back response till all transactions have been added
-if (transactions.length === accounts.length) {
+
+            if (transactions.length === accounts.length) {
               res.json(transactions);
             }
           })
@@ -125,3 +137,5 @@ if (transactions.length === accounts.length) {
     }
   }
 );
+
+module.exports = router;

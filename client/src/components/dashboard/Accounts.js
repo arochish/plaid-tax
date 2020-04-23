@@ -9,12 +9,14 @@ import {
 } from "../../actions/accountActions";
 import { logoutUser } from "../../actions/authActions";
 import MaterialTable from "material-table"; // https://mbrn.github.io/material-table/#/
+
 class Accounts extends Component {
   componentDidMount() {
     const { accounts } = this.props;
     this.props.getTransactions(accounts);
   }
-// Add account
+
+  // Add account
   handleOnSuccess = (token, metadata) => {
     const { accounts } = this.props;
     const plaidData = {
@@ -22,9 +24,11 @@ class Accounts extends Component {
       metadata: metadata,
       accounts: accounts
     };
-this.props.addAccount(plaidData);
+
+    this.props.addAccount(plaidData);
   };
-// Delete account
+
+  // Delete account
   onDeleteClick = id => {
     const { accounts } = this.props;
     const accountData = {
@@ -33,15 +37,18 @@ this.props.addAccount(plaidData);
     };
     this.props.deleteAccount(accountData);
   };
-// Logout
+
+  // Logout
   onLogoutClick = e => {
     e.preventDefault();
     this.props.logoutUser();
   };
-render() {
+
+  render() {
     const { user, accounts } = this.props;
     const { transactions, transactionsLoading } = this.props.plaid;
-let accountItems = accounts.map(account => (
+
+    let accountItems = accounts.map(account => (
       <li key={account._id} style={{ marginTop: "1rem" }}>
         <button
           style={{ marginRight: "1rem" }}
@@ -53,27 +60,42 @@ let accountItems = accounts.map(account => (
         <b>{account.institutionName}</b>
       </li>
     ));
-// Setting up data table
+
+    // Setting up data table
     const transactionsColumns = [
       { title: "Account", field: "account" },
       { title: "Date", field: "date", type: "date", defaultSort: "desc" },
       { title: "Name", field: "name" },
-      { title: "Amount", field: "amount" },
-      { title: "Category", field: "category" }
+      { title: "Amount", field: "amount", type: "numeric" },
+      { title: "Category", field: "category" },
+      { title: "Tax Deductable", field: "tax_ded" }
     ];
-let transactionsData = [];
+
+    let transactionsData = [];
+
+    let taxable = "Yes";
+
+    
     transactions.forEach(function(account) {
       account.transactions.forEach(function(transaction) {
+        if(transaction.category[0]==="Travel" || transaction.category[0]==="Payment"){
+            taxable = "Yes";
+        }
+        else{
+            taxable = "No";
+        }
         transactionsData.push({
           account: account.accountName,
           date: transaction.date,
           category: transaction.category[0],
           name: transaction.name,
-          amount: transaction.amount
+          amount: transaction.amount,
+          tax_ded: taxable
         });
       });
     });
-return (
+
+    return (
       <div className="row">
         <div className="col s12">
           <button
@@ -141,6 +163,7 @@ return (
     );
   }
 }
+
 Accounts.propTypes = {
   logoutUser: PropTypes.func.isRequired,
   getTransactions: PropTypes.func.isRequired,
@@ -150,9 +173,11 @@ Accounts.propTypes = {
   plaid: PropTypes.object.isRequired,
   user: PropTypes.object.isRequired
 };
+
 const mapStateToProps = state => ({
   plaid: state.plaid
 });
+
 export default connect(
   mapStateToProps,
   { logoutUser, getTransactions, addAccount, deleteAccount }

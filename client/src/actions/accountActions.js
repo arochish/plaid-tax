@@ -1,4 +1,5 @@
 import axios from "axios";
+
 import {
   ADD_ACCOUNT,
   DELETE_ACCOUNT,
@@ -7,7 +8,6 @@ import {
   GET_TRANSACTIONS,
   TRANSACTIONS_LOADING
 } from "./types";
-// Actions will go here
 
 // Add account
 export const addAccount = plaidData => dispatch => {
@@ -64,6 +64,7 @@ export const getAccounts = () => dispatch => {
       })
     );
 };
+
 // Accounts loading
 export const setAccountsLoading = () => {
   return {
@@ -89,6 +90,7 @@ export const getTransactions = plaidData => dispatch => {
       })
     );
 };
+
 // Transactions loading
 export const setTransactionsLoading = () => {
   return {
